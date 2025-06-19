@@ -1,0 +1,15 @@
+[package]
+name = "test_basic_notification"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "test_basic_notification"
+path = "src/main.rs"
+
+[dependencies]
+user-notify = { path = "../../" }
+tokio = { version = "1.0", features = ["full"] }
+env_logger = "0.10"
+log = "0.4"
+anyhow = "1.0" 
