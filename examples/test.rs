@@ -9,6 +9,9 @@ use user_notify::{NotificationCategory, NotificationCategoryAction, get_notifica
 
 const DEFAULT_BUNDLE_ID: &str = "ai.gety";
 
+const ACTION_CATEGORY_ID: &str = "app.category.action";
+const TEXT_INPUT_CATEGORY_ID: &str = "app.category.textinput";
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     env_logger::Builder::from_default_env()
@@ -24,7 +27,10 @@ async fn main() -> anyhow::Result<()> {
     let bundle_id = bundle_id.trim();
 
     let bundle_id = if bundle_id.is_empty() {
-        log::info!("Bundle ID is empty, using default value: {}", DEFAULT_BUNDLE_ID);
+        log::info!(
+            "Bundle ID is empty, using default value: {}",
+            DEFAULT_BUNDLE_ID
+        );
         DEFAULT_BUNDLE_ID.to_string()
     } else {
         bundle_id.to_string()
@@ -42,22 +48,26 @@ async fn main() -> anyhow::Result<()> {
     log::debug!("Preparing to register notification categories...");
     let categories = vec![
         NotificationCategory {
-            identifier: "my.app.123".to_string(),
+            identifier: ACTION_CATEGORY_ID.to_string(),
             actions: vec![
                 NotificationCategoryAction::Action {
-                    identifier: "my.app.123.button1".to_string(),
-                    title: "Hallo Welt".to_string(),
+                    identifier: format!("{}.button.submit", ACTION_CATEGORY_ID),
+                    title: "Submit".to_string(),
                 },
                 NotificationCategoryAction::Action {
-                    identifier: "my.app.123.button2".to_string(),
-                    title: "Button 2".to_string(),
+                    identifier: format!("{}.button.cancel", ACTION_CATEGORY_ID),
+                    title: "Cancel".to_string(),
+                },
+                NotificationCategoryAction::Action {
+                    identifier: format!("{}.button.detail", ACTION_CATEGORY_ID),
+                    title: "Detail".to_string(),
                 },
             ],
         },
         NotificationCategory {
-            identifier: "my.app.123.textinput".to_string(),
+            identifier: TEXT_INPUT_CATEGORY_ID.to_string(),
             actions: vec![NotificationCategoryAction::TextInputAction {
-                identifier: "my.app.123.button2".to_string(),
+                identifier: format!("{}.button.send", TEXT_INPUT_CATEGORY_ID),
                 title: "Reply".to_string(),
                 input_button_title: "Send".to_string(),
                 input_placeholder: "type your message here".to_string(),
@@ -116,12 +126,14 @@ async fn main() -> anyhow::Result<()> {
     let mut notification = user_notify::NotificationBuilder::new();
 
     notification = notification
-        .title("my title2")
-        .body("my body2")
-        .set_thread_id(&format!("thread-id"));
+        .title("my title")
+        .body("my body")
+        .set_thread_id(&format!("thread-id"))
+        .set_category_id(ACTION_CATEGORY_ID);
 
     log::debug!(
-        "First notification built - title: 'my title2', body: 'my body2', thread ID: 'thread-id'"
+        "First notification built - title: 'my title', body: 'my body', category: '{}'",
+        ACTION_CATEGORY_ID,
     );
     log::debug!("Sending first notification...");
     manager.send_notification(notification).await?;
@@ -137,10 +149,11 @@ async fn main() -> anyhow::Result<()> {
         .body("my body")
         .set_thread_id(&format!("thread-id"))
         .set_user_info(info.clone())
-        .set_category_id("my.app.123.textinput");
+        .set_category_id(TEXT_INPUT_CATEGORY_ID);
 
     log::debug!(
-        "Second notification built - title: 'my title', body: 'my body', category: 'my.app.123.textinput'"
+        "Second notification built - title: 'my title', body: 'my body', category: '{}'",
+        TEXT_INPUT_CATEGORY_ID,
     );
     log::debug!("User info: {:?}", info);
     log::debug!("Sending second notification asynchronously...");

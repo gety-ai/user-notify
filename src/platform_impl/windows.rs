@@ -3,7 +3,7 @@
 //! or as a fallback for tauri's devmode that runs the app without a bundle id
 
 use std::collections::HashMap;
-use std::sync::{Arc, OnceLock};
+use std::sync::{Arc, OnceLock, RwLock};
 
 use async_trait::async_trait;
 use windows::Foundation::Collections::StringMap;
@@ -20,8 +20,8 @@ use windows::{
 use windows_collections::IVectorView;
 
 use crate::{
-    Error, NotificationBuilder, NotificationHandle, NotificationManager, NotificationResponse,
-    NotificationResponseAction,
+    Error, NotificationBuilder, NotificationCategory, NotificationHandle, NotificationManager,
+    NotificationResponse, NotificationResponseAction,
 };
 
 use base64::Engine;
@@ -53,6 +53,7 @@ pub struct NotificationManagerWindows {
         Arc<OnceLock<Box<dyn Fn(crate::NotificationResponse) + Send + Sync + 'static>>>,
     app_id: String,
     notification_protocol: Option<String>,
+    categories: Arc<RwLock<HashMap<String, NotificationCategory>>>,
 }
 
 impl std::fmt::Debug for NotificationManagerWindows {
@@ -80,6 +81,7 @@ impl NotificationManagerWindows {
             handler_callback: Arc::new(OnceLock::new()),
             app_id,
             notification_protocol,
+            categories: Arc::new(RwLock::new(HashMap::new())),
         }
     }
 
@@ -119,6 +121,61 @@ impl NotificationManagerWindows {
             serde_json::from_str(&quick_xml::escape::unescape(&user_info_string.to_string())?)
                 .map_err(Error::FailedToParseUserInfo)?;
         Ok(user_info)
+    }
+
+    fn generate_actions_xml(&self, category_id: &str) -> Result<String, Error> {
+        let categories = self.categories.read().map_err(|_| Error::SettingHandler)?;
+
+        if let Some(category) = categories.get(category_id) {
+            let mut actions_xml = String::new();
+
+            if !category.actions.is_empty() {
+                actions_xml.push_str("<actions>");
+
+                for action in &category.actions {
+                    match action {
+                        crate::NotificationCategoryAction::Action { identifier, title } => {
+                            let escaped_identifier = quick_xml::escape::escape(identifier);
+                            let escaped_title = quick_xml::escape::escape(title);
+                            actions_xml.push_str(&format!(
+                                r#"<action content="{}" arguments="{}" activationType="foreground" />"#,
+                                escaped_title, escaped_identifier
+                            ));
+                        }
+                        crate::NotificationCategoryAction::TextInputAction {
+                            identifier,
+                            title,
+                            input_button_title,
+                            input_placeholder,
+                        } => {
+                            let escaped_identifier = quick_xml::escape::escape(identifier);
+                            let escaped_title = quick_xml::escape::escape(title);
+                            let escaped_button_title =
+                                quick_xml::escape::escape(input_button_title);
+                            let escaped_placeholder = quick_xml::escape::escape(input_placeholder);
+                            actions_xml.push_str(&format!(
+                                r#"<input id="textBox" type="text" placeHolderContent="{}" />"#,
+                                escaped_placeholder
+                            ));
+                            actions_xml.push_str(&format!(
+                                r#"<action content="{}" arguments="{}" hint-inputId="textBox" activationType="foreground" />"#,
+                                escaped_button_title, escaped_identifier
+                            ));
+                        }
+                    }
+                }
+
+                actions_xml.push_str("</actions>");
+            }
+
+            Ok(actions_xml)
+        } else {
+            log::warn!(
+                "Category '{}' not found in registered categories",
+                category_id
+            );
+            Ok(String::new())
+        }
     }
 
     fn register_event_listeners(&self, toast: &ToastNotification) -> Result<(), Error> {
@@ -221,6 +278,17 @@ impl NotificationManager for NotificationManagerWindows {
         self.handler_callback
             .set(handler_callback)
             .map_err(|_| Error::SettingHandler)?;
+
+        // Store categories for later use
+        {
+            let mut stored_categories =
+                self.categories.write().map_err(|e| Error::SettingHandler)?; // Reuse existing error variant
+            stored_categories.clear();
+            for category in categories {
+                stored_categories.insert(category.identifier.clone(), category);
+            }
+        }
+
         // register handlers to all notifications of last session
         let history = self.get_history()?;
         for toast in history.into_iter() {
@@ -366,6 +434,13 @@ impl NotificationManager for NotificationManagerWindows {
                 "".to_owned()
             };
 
+        // Generate actions XML based on category
+        let actions_xml = if let Some(category_id) = &builder.category_id {
+            self.generate_actions_xml(category_id)?
+        } else {
+            String::new()
+        };
+
         let toast_xml = XmlDocument::new()?;
         // https://learn.microsoft.com/uwp/schemas/tiles/toastschema/schema-root
         toast_xml
@@ -381,14 +456,11 @@ impl NotificationManager for NotificationManagerWindows {
                         </binding>
                     </visual>
                     <audio src="ms-winsoundevent:Notification.SMS" />
+                    {actions_xml}
                     <!-- <audio silent="true" /> -->
                 </toast>"#
             )))
             .expect("the xml is malformed");
-
-        // IDEA: button support via category?
-
-        // IDEA: figgure out if reply text field is possible with this API
 
         let toast = ToastNotification::CreateToastNotification(&toast_xml)?;
 
