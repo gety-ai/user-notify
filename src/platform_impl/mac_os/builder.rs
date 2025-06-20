@@ -4,7 +4,7 @@ use super::{NotificationManagerMacOS, handle::NotificationHandleMacOS};
 use objc2::{rc::Retained, runtime::AnyObject};
 use objc2_foundation::{NSArray, NSDictionary, NSString, NSURL, ns_string};
 use objc2_user_notifications::{
-    UNMutableNotificationContent, UNNotificationAttachment, UNNotificationRequest,
+    UNMutableNotificationContent, UNNotificationAttachment, UNNotificationRequest, UNNotificationSound,
 };
 use uuid::Uuid;
 
@@ -51,6 +51,17 @@ fn build(
 
         if let Some(subtitle) = builder.subtitle {
             notification.setSubtitle(&NSString::from_str(&subtitle));
+        }
+
+        if let Some(sound_name) = builder.sound {
+            let sound = if sound_name == "default" {
+                UNNotificationSound::defaultSound()
+            } else {
+                UNNotificationSound::soundNamed(&NSString::from_str(&sound_name))
+            };
+            notification.setSound(Some(&sound));
+        } else {
+            notification.setSound(Some(&UNNotificationSound::defaultSound()));
         }
 
         if let Some(path) = builder.image {

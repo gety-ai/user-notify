@@ -17,6 +17,7 @@ pub struct NotificationBuilder {
     pub(crate) xdg_category: Option<XdgNotificationCategory>,
     pub(crate) xdg_app_name: Option<String>,
     pub(crate) user_info: Option<HashMap<String, String>>,
+    pub(crate) sound: Option<String>,
 }
 
 impl NotificationBuilder
@@ -56,6 +57,19 @@ where
     /// - Windows [text1](https://docs.rs/tauri-winrt-notification/latest/tauri_winrt_notification/struct.Toast.html#method.text1)
     pub fn subtitle(mut self, subtitle: &str) -> Self {
         self.subtitle = Some(subtitle.to_owned());
+        self
+    }
+
+    /// Set notification sound
+    ///
+    /// Platform specific:
+    /// - MacOS: [UNNotificationContent/sound](https://developer.apple.com/documentation/usernotifications/unnotificationcontent/sound)
+    ///   - Use "default" for default system sound
+    ///   - Use filename without extension for custom sounds (must be in app bundle)
+    /// - Linux / XDG: **not supported yet!**
+    /// - Windows: **not supported yet!**
+    pub fn sound(mut self, sound: &str) -> Self {
+        self.sound = Some(sound.to_owned());
         self
     }
 
@@ -184,7 +198,7 @@ where
         categories: Vec<NotificationCategory>,
     ) -> Result<(), Error>;
 
-    /// Removes all of your app’s delivered notifications from Notification Center.
+    /// Removes all of your app's delivered notifications from Notification Center.
     ///
     /// ## Platform specific:
     /// - MacOS: [UNUserNotificationCenter.removeAllDeliveredNotifications](https://developer.apple.com/documentation/usernotifications/unusernotificationcenter/removealldeliverednotifications())
