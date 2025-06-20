@@ -1,12 +1,14 @@
 ## User Notifications
 
-```
-This repo is copy from https://github.com/deltachat/deltachat-desktop/tree/main/packages/target-tauri/crates/user-notify
-```
-
 Simple library to implement all notification features that we need for delta tauri.
 
 Notifications stay until they are closed by the user or by the app.
+
+## This is a part of deltachat!!!
+
+So it extend GPL3.0 License!
+
+source: https://github.com/deltachat/deltachat-desktop/tree/main/packages/target-tauri/crates/user-notify
 
 ## Useful links
 
