@@ -1,9 +1,6 @@
-use std::{
-    collections::HashMap,
-    time::Duration,
-};
+use std::{collections::HashMap, time::Duration};
 
-use tokio::{time::sleep};
+use tokio::time::sleep;
 use user_notify::{NotificationCategory, NotificationCategoryAction, get_notification_manager};
 
 const DEFAULT_BUNDLE_ID: &str = "ai.gety";
@@ -391,4 +388,25 @@ async fn test_integration_full_flow() -> anyhow::Result<()> {
 
     log::info!("✅ Integration test completed successfully");
     Ok(())
-} 
+}
+
+#[tokio::test]
+async fn test_long_text_notification() -> anyhow::Result<()> {
+    init_logger();
+    log::debug!("Testing long text notification");
+
+    let bundle_id = get_test_bundle_id();
+    let manager = get_notification_manager(bundle_id, None);
+    let long_text_notification = user_notify::NotificationBuilder::new()
+        .title("📄 Long Text Test - This is a very long title that might get truncated or wrapped depending on the system notification display limits")
+        .body("这是一个超长文本测试通知。This is a very long text notification test to see how the notification system handles extremely long content. We want to test if the text gets truncated, wrapped, or displayed in some other way. The notification system should handle this gracefully without breaking or causing issues. 这个通知包含了中英文混合的超长文本内容，用来测试通知系统对于长文本的处理能力。We're testing various scenarios: very long titles, very long body text, mixed languages (Chinese and English), special characters, emoji 🎉🔥💯, and other edge cases that might occur in real-world usage. This helps ensure our notification library is robust and can handle different types of content gracefully.")
+        .subtitle("📏 Subtitle: Testing how subtitles work with extremely long notification content and whether they get proper formatting")
+        .sound("default")
+        .set_thread_id("test-thread-long-text")
+        .set_category_id(ACTION_CATEGORY_ID);
+
+    manager.send_notification(long_text_notification).await?;
+    log::info!("✅ Long text notification sent successfully");
+
+    Ok(())
+}

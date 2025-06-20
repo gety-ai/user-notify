@@ -102,6 +102,21 @@ async fn main() -> anyhow::Result<()> {
     manager.send_notification(notification2).await?;
     println!("✅ Second notification sent successfully");
 
+    // Wait a moment, then send a notification with very long text
+    sleep(Duration::from_secs(3)).await;
+
+    println!("📤 Sending notification with very long text...");
+    let long_text_notification = user_notify::NotificationBuilder::new()
+        .title("📄 Long Text Test - This is a very long title that might get truncated or wrapped depending on the system notification display limits")
+        .body("这是一个超长文本测试通知。This is a very long text notification test to see how the notification system handles extremely long content. We want to test if the text gets truncated, wrapped, or displayed in some other way. The notification system should handle this gracefully without breaking or causing issues. 这个通知包含了中英文混合的超长文本内容，用来测试通知系统对于长文本的处理能力。We're testing various scenarios: very long titles, very long body text, mixed languages (Chinese and English), special characters, emoji 🎉🔥💯, and other edge cases that might occur in real-world usage. This helps ensure our notification library is robust and can handle different types of content gracefully.")
+        .subtitle("📏 Subtitle: Testing how subtitles work with extremely long notification content and whether they get proper formatting")
+        .sound("default")
+        .set_thread_id("test-thread-long-text")
+        .set_category_id(ACTION_CATEGORY_ID);
+
+    manager.send_notification(long_text_notification).await?;
+    println!("✅ Long text notification sent successfully");
+
     // Wait a bit to see the notification
     println!("⏱️ Waiting 10 seconds to observe the notifications...");
     println!("💡 Check your notification center and top-right corner of screen");
